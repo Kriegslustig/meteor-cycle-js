@@ -1,23 +1,21 @@
 import { Meteor } from 'meteor/meteor'
+import { makeMongoDriver } from 'meteor/kriegslustig:cyclejs-mongo'
+import { State } from '/imports/collections'
 
-// import Rx from 'rx'
 import { run } from '@cycle/core'
 import { makeDOMDriver, button, p, h } from '@cycle/dom'
-import storageDriver from '@cycle/storage'
 
 const intent = (DOM) =>
   ({
     more$: DOM.select('button').events('click')
   })
 
-const model = (actions, store) =>
+const model = (actions) =>
   [
-    store.getItem('state'),
+    State.find()
+      .map((res) => res.length),
     actions.more$
-      .withLatestFrom(store.getItem('state'))
-      .map(([_, n]) =>
-        ({ key: 'state', value: n ? ++n : 1 })
-      )
+      .map((n) => ['state', 'insert', { value: 'click' }])
   ]
 
 const view = (state$) =>
@@ -29,17 +27,14 @@ const view = (state$) =>
   )
 
 const main = (sources) => {
-  const [state$, storageRequests$] = model(
-    intent(sources.DOM),
-    sources.storage.local
-  )
-  return { DOM: view(state$), storage: storageRequests$ }
+  const [state$, mongoRequests$] = model(intent(sources.DOM))
+  return { DOM: view(state$), mongo: mongoRequests$ }
 }
 
 Meteor.startup(() => {
   const drivers = {
     DOM: makeDOMDriver('#app'),
-    storage: storageDriver
+    mongo: makeMongoDriver(State)
   }
   run(main, drivers)
 })
