@@ -1,22 +1,46 @@
-import { Template } from 'meteor/templating';
-import { ReactiveVar } from 'meteor/reactive-var';
+import { Meteor } from 'meteor/meteor'
 
-import './main.html';
+// import Rx from 'rx'
+import { run } from '@cycle/core'
+import { makeDOMDriver, button, p, h } from '@cycle/dom'
+import storageDriver from '@cycle/storage'
 
-Template.hello.onCreated(function helloOnCreated() {
-  // counter starts at 0
-  this.counter = new ReactiveVar(0);
-});
+const intent = (DOM) =>
+  ({
+    more$: DOM.select('button').events('click')
+  })
 
-Template.hello.helpers({
-  counter() {
-    return Template.instance().counter.get();
-  },
-});
+const model = (actions, store) =>
+  [
+    store.getItem('state'),
+    actions.more$
+      .withLatestFrom(store.getItem('state'))
+      .map(([_, n]) =>
+        ({ key: 'state', value: n ? ++n : 1 })
+      )
+  ]
 
-Template.hello.events({
-  'click button'(event, instance) {
-    // increment the counter when button is clicked
-    instance.counter.set(instance.counter.get() + 1);
-  },
-});
+const view = (state$) =>
+  state$.map((n) =>
+    h('main', [
+      p(`You have clicked the button ${n} times`),
+      button('Click Me!')
+    ])
+  )
+
+const main = (sources) => {
+  const [state$, storageRequests$] = model(
+    intent(sources.DOM),
+    sources.storage.local
+  )
+  return { DOM: view(state$), storage: storageRequests$ }
+}
+
+Meteor.startup(() => {
+  const drivers = {
+    DOM: makeDOMDriver('#app'),
+    storage: storageDriver
+  }
+  run(main, drivers)
+})
+
