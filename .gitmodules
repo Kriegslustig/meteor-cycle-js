@@ -1,0 +1,3 @@
+[submodule "packages/cyclejs-mongo"]
+	path = packages/cyclejs-mongo
+	url = https://github.com/Kriegslustig/meteor-cyclejs-mongo
